@@ -3,6 +3,8 @@
 // this script uses the first centerline from a file that that intersects the glacier polygon.
 // if the user prefers to draw in a centerline themselves, change the variable name at line 80 to their given var name
 
+var file_out = 'SitKusa' ; 
+
 // import the glims outlines
 var GLIMS = ee.FeatureCollection('GLIMS/current').filter(ee.Filter.bounds(AOI)).filter('glac_name=="Turner Glacier"'); 
 //Map.addLayer(GLIMS,{color: 'purple'},'Sit Kusa Outline')
@@ -201,6 +203,6 @@ Map.addLayer(cl, {color: 'green'},'Sit Kusa centerlines');
 Export.table.toDrive({
   collection: ptsTopoStats,
   folder: 'cycles',
-  description: 'SitKusa',
+  description: file_out,
   fileFormat: 'CSV'
 });
