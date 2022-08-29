@@ -1,8 +1,8 @@
-// pull information necessary to compute the Pecleat number along a centerline profile defined by the user.
+// obtain the information required to compute the Peclet number along a centerline.  
 
-// to run, this script needs the user to add the Millan 2022 ice thicknesses (or some other ice thickness raster) as RGI to their earth engine environment. 
+// this script uses the first centerline from a file that that intersects the glacier polygon.
+// if the user prefers to draw in a centerline themselves, change the variable name at line 80 to their given var name
 
-// IMPORT DATA //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // import the glims outlines
 var GLIMS = ee.FeatureCollection('GLIMS/current').filter(ee.Filter.bounds(AOI)).filter('glac_name=="Turner Glacier"'); 
 //Map.addLayer(GLIMS,{color: 'purple'},'Sit Kusa Outline')
@@ -14,9 +14,6 @@ var slope = ee.Terrain.slope(elev);
 
 // clip the ice thickness 
 var Ho = RGI.clip(GLIMS);
-
-
-// smooth rasters and determine bed surface elevation and slope /////////////////////////////////////////////////////////////////////////////////////////
 
 // smooth the ice thickness to get rid of Millan artefacts 
 // Define a boxcar or low-pass kernel.
@@ -34,20 +31,23 @@ var elev = elev.convolve(boxcar);
 var bed_elev = elev.subtract(Ho)
 var bed_slope = ee.Terrain.slope(bed_elev);
 
+// also smooth the bed slop, for good measure
+var bed_slope = bed_slope.convolve(boxcar) ; 
+
 
 // Adding layers to map:
 Map.addLayer(bed_elev, {min: 0, max: 80}, 'bed_slope');
 
 
-// clip the centerlines 
+// clip the centerlines to the glacier
 var centerL = ee.FeatureCollection(centerline).geometry()
-var cl = centerL.intersection({'right': GLIMS, 'maxError': 1});
-print(cl)
-var coords = cl.coordinates().get(0)
+var cl = centerL.intersection({'right': GLIMS, 'maxError': 1})
 
+// select the first centerline in the file... check on map that this is the correct one! 
+var line_one = cl.geometries().get(0)
+print(line_one)
 
-// define function to get points along centerline ///////////////////////////////////////////////////////////////////////////////////////
-
+// function to get points from centerline
 function lineToPoints(lineString, count) {
   var length = lineString.length();
   var step = lineString.length().divide(count);
@@ -76,13 +76,16 @@ function lineToPoints(lineString, count) {
   return new ee.FeatureCollection(points);
 }
 
-// apply function 
-
-var points = lineToPoints(oneline, 100)
+// actually get at the points: 
 
 
-// define function to pull data from rasters at point locations
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// here if the users prefers to draw in a centerline, change to the name of the centerline... ////////////
+var points = lineToPoints(ee.Geometry(line_one), 100)                                         ////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+// function to buffer the points (prepare to extract raster data)
 function bufferPoints(radius, bounds) {
   return function(pt) {
     pt = ee.Feature(pt);
@@ -90,6 +93,7 @@ function bufferPoints(radius, bounds) {
   };
 }
 
+// function to get data at buffered points 
 function zonalStats(ic, fc, params) {
   // Initialize internal params dictionary.
   var _params = {
@@ -153,13 +157,12 @@ function zonalStats(ic, fc, params) {
   return results;
 }
 
-// buffer points 
+// apply points buffer function
 var ptsTopo = points.map(bufferPoints(45, false));
 
-// Concatenate elevation and slope as two bands of an image.
+// Concatenate elevation, bbed elevation, bed slope and ice thickness as four bands of an image.
 var topo = ee.Image.cat(elev, bed_elev, bed_slope, Ho)
-  // Computed images do not have a 'system:time_start' property; add one based
-  // on when the data were collected.
+  // Computed images do not have a 'system:time_start' property; add a dummy one
   .set('system:time_start', ee.Date('2000-01-01').millis());
 
 // Wrap the single image in an ImageCollection for use in the zonalStats function.
@@ -174,14 +177,14 @@ var params = {
 // Extract zonal statistics per point per image.
 var ptsTopoStats = zonalStats(topoCol, ptsTopo, params);
 
+// print the collection
 print(ptsTopoStats);
 
 
+// VISULAIZATION + EXPORT
+
+// add the cenerline points to map .... !! use this to check whether we have the centerline of interest!
 Map.addLayer(points)
-
-
-// Adding layers to map:
-Map.addLayer(elev, {min: 500, max: 3300}, 'D3DEP_elev');
 
 // add ice thickness to map 
 var I_T_Vis = {
@@ -194,8 +197,7 @@ Map.addLayer(Ho,I_T_Vis,'Ice Thickness');
 
 Map.addLayer(cl, {color: 'green'},'Sit Kusa centerlines');
 
-
-// export data table 
+// export pulled info to csv in drive 
 Export.table.toDrive({
   collection: ptsTopoStats,
   folder: 'cycles',
