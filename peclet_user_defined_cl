@@ -44,21 +44,9 @@ var centerL = ee.FeatureCollection(centerline).geometry()
 var cl = centerL.intersection({'right': GLIMS, 'maxError': 1});
 print(cl)
 var coords = cl.coordinates().get(0)
-print(coords)
-print(ee.List(coords).get(0))
-print(ee.List(coords).length())
 
 
-// define functions to get points along centerline ///////////////////////////////////////////////////////////////////////////////////////
-
-function get_points(coord,q) { 
-  return ee.Feature(ee.Geometry.Point(ee.List(coord)))} ; 
-var quantityList = [1000]
-var cl_points = ee.List(coords).iterate(get_points,ee.List(coords).length())
-  
-//var cl_points = ee.Feature(ee.Geometry.Point(ee.List(coords).get(0)))
-print(cl_points)
-
+// define function to get points along centerline ///////////////////////////////////////////////////////////////////////////////////////
 
 function lineToPoints(lineString, count) {
   var length = lineString.length();
