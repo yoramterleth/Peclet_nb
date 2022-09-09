@@ -12,6 +12,7 @@ This script pulls the elevation and slope profiles of ArcticDEM, annd the ice th
 Zhang et al (2022) - A new global dataset of mountain glacier centerlines and lengths (https://doi.org/10.5194/essd-14-3889-2022); 
 available here: https://doi.org/10.11922/sciencedb.01643 
 
+It also saves the elevation data as a tiff file, so that the distance tot eh terminus can later be determined with the Maltab Topotoolbox
 This dataset needs to be availaible in the working directory.
 Arcitc DEM is pulled using Google earth engine tools.
 Millan is pulled from earth engine, but should be present as an personal asset in earth engine... 
@@ -24,6 +25,7 @@ import numpy as np
 from functools import reduce
 import ee as ee
 import geopandas as gp 
+import pandas as pd 
 import geemap 
 import os
 from os.path import exists
@@ -43,17 +45,23 @@ from centerline_functions import line_to_points, buffer_points
 ee.Initialize()
 
 
-#%% select a glacier 
-RGIglacier = ee.FeatureCollection('GLIMS/current').filter('glac_name=="Bering Glacier"')
+#%% select a glacier #####################################################################
+RGIglacier = ee.FeatureCollection('GLIMS/current').filter('glac_name=="Donjek Glacier"')
+
+# optional to use ID for non named glaciers 
+ # RGIglacier = ee.FeatureCollection('GLIMS/current').filter('glac_id=="G209330E63184N"')
+
 
 # glacier name for file out
-glacier_name = 'Bering'
+glacier_name = 'Donjek2'
+
+########################################################################################
 
 #%% read in data 
 print('Loading data...')
 
 #%% load ArcticDEM, and convert to slope (in degrees)
-elev = ee.Image("UMN/PGC/ArcticDEM/V3/2m_mosaic") 
+elev = ee.Image("UMN/PGC/ArcticDEM/V3/2m_mosaic")#.select('elevation') 
 slope = ee.Terrain.slope(elev)
 
 #%% load in ice thickness from the GEE asset library 
@@ -90,6 +98,18 @@ cl = gp.clip(centerlines, GLIMS_shp)
 #%% plot the glacier outline and the centerlines we are pulling
 ax = GLIMS_shp.plot()
 ax = cl.plot()
+
+#%% pull elevation data for flowline calc ####################################################
+
+file_name = 'C:/Users/Yoram/OneDrive - University of Idaho\Desktop/PhD pos/SURGE_CYCLES/peclet_nb/python_gee/centerlines/'+glacier_name+'DEM.tif'
+# interpolate dem to a coearser res, to reduce nb of pixels 
+elev_projection = elev.projection()#.getInfo()
+elev_coarse = elev#.reduceResolution(reducer=ee.Reducer.mean(),maxPixels=1024).reproject(crs=elev_projection, scale=50)
+elev_coarse = elev_coarse.clip(GLIMS).unmask()
+elev_coarse.getInfo()
+geemap.ee_export_image(elev_coarse,filename=file_name, region = GLIMS.geometry(), file_per_band=False)
+
+##############################################################################
 
 #%% beginning of for loop ##
 
@@ -138,7 +158,7 @@ for i in cl.geometry.index:
         
         # nb of points we want to pull; length depedent:
         # here we set 100 m intervals between points        
-        point_nb = ceil(ee_centerline.length().getInfo() / 500) # 100 
+        point_nb = ceil(ee_centerline.length().getInfo() / 100) # 100 
         
         
         # length of the ee string
@@ -187,7 +207,8 @@ for i in cl.geometry.index:
 #%% pull the actual data 
 
 # concatenate the variables of interest from the dem as bands of an image, and add a dummy system start time 
-topo = ee.Image.cat(elev, slope, bed_elev, bed_slope).set('system:time_start', ee.Date('2000-01-01').millis())
+topo = ee.Image.cat(elev, slope,RGI, bed_elev, bed_slope).set('system:time_start', ee.Date('2000-01-01').millis())
+topo = topo.rename(['elev', 'slope', 'Ho', 'bed_elev', 'bed_slope'])
 
 
 # set up the csv step needed for geemap.zonal_statistics()... this is clunky but it works remarkably well
