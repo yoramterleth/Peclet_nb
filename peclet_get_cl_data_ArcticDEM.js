@@ -24,7 +24,7 @@ var slope = ee.Terrain.slope(elev);
 Map.addLayer(slope, {min: 0, max: 60}, 'bed_elev');
 
 ///////////////////////////////////////////////////////////////////////
-// add the correct ice thickness to the map: in my case Ho_Sv or Ho_AK
+// add the correct ice thickness: in my case Ho_Sv or Ho_AK
 var Ho = RGI_Sv.clip(GLIMS);
 ///////////////////////////////////////////////////////////////////////
 
