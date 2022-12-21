@@ -19,7 +19,7 @@ These are python scripts but run with the EE and GEEMAP modules.
 ### Matlab
 These actually compute Pe and make plots (sorry, I just like Matlab better for plots, and I don't know how to use geopandas hydrology tools. 
 They use the csv files exported by the earth engine or python scripts. 
--Peclet_EE.m computes the Pe from the earth engine code editor output. Users do need to select whether they got data with arctic dem or USGS dem. 
--Peclet_python.m does the same but with the Zhang centerlines. 
+- Peclet_EE.m computes the Pe from the earth engine code editor output. Users do need to select whether they got data with arctic dem or USGS dem. 
+- Peclet_python.m does the same but with the Zhang centerlines. 
 - get_offsets.m is a helper for Peclet_python.m: it computes the distance to the terminus using Matlab's topotoolbox. 
 - other .m scripts are helpers to load data. 
