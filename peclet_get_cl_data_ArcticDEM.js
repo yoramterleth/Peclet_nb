@@ -3,17 +3,19 @@
 // this script uses the first centerline from a file that that intersects the glacier polygon.
 // if the user prefers to draw in a centerline themselves, change the variable name at line 80 to their given var name
 
-var file_out = 'Bassin3' ; 
+/////////////////////////////////////////////////////
+// Name of the csv file storing the centerline info
+var file_out = 'Negribreen' ; 
+/////////////////////////////////////////////////////
 
 
 // import the glims outlines
-var GLIMS = ee.FeatureCollection('GLIMS/current').filter(ee.Filter.bounds(AOI))//.filter('glac_name=="Muldrow Glacier"'); 
-//Map.addLayer(GLIMS,{color: 'purple'},'Sit Kusa Outline')
-print(GLIMS)
+var GLIMS = ee.FeatureCollection('GLIMS/current') 
 
-// load USdem 
-var D3DEP_DEM =  ee.Image("UMN/PGC/ArcticDEM/V3/2m_mosaic").clip(GLIMS);
-var elev = D3DEP_DEM.select('elevation')
+
+// load arcticdem 
+var A_DEM =  ee.Image("UMN/PGC/ArcticDEM/V3/2m_mosaic").clip(GLIMS);
+var elev = A_DEM.select('elevation')
 var elev = elev.reproject('EPSG:4326', null, 100);
 var slope = ee.Terrain.slope(elev);
 
@@ -21,8 +23,11 @@ var slope = ee.Terrain.slope(elev);
 // Adding layers to map:
 Map.addLayer(slope, {min: 0, max: 60}, 'bed_elev');
 
-// clip the ice thickness 
-var Ho = RGI_AK.clip(GLIMS);
+///////////////////////////////////////////////////////////////////////
+// add the correct ice thickness to the map: in my case Ho_Sv or Ho_AK
+var Ho = RGI_Sv.clip(GLIMS);
+///////////////////////////////////////////////////////////////////////
+
 
 // smooth the ice thickness to get rid of Millan artefacts 
 // Define a boxcar or low-pass kernel.
@@ -40,20 +45,10 @@ var elev = elev.convolve(boxcar);
 var bed_elev = elev.subtract(Ho)
 var bed_slope = ee.Terrain.slope(bed_elev);
 
-// also smooth the bed slop, for good measure
+// also smooth the bed slope, for good measure
 var bed_slope = bed_slope.convolve(boxcar) ; 
 
 
-
-
-
-// clip the centerlines to the glacier
-//var centerL = ee.FeatureCollection(centerline).geometry()
-//var cl = centerL.intersection({'right': GLIMS, 'maxError': 1})
-
-// select the first centerline in the file... check on map that this is the correct one! 
-//var line_one = cl.geometries().get(0)
-//print(line_one)
 
 // function to get points from centerline
 function lineToPoints(lineString, count) {
@@ -84,12 +79,12 @@ function lineToPoints(lineString, count) {
   return new ee.FeatureCollection(points);
 }
 
-// actually get at the points: 
+// actually get at the points: ////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 // here if the users prefers to draw in a centerline, change to the name of the centerline... ////////////
-var points = lineToPoints(ee.Geometry(Bassin3), 1000)                                         ////////////
+var points = lineToPoints(ee.Geometry(Negribreen), 1000)                                      ////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -189,7 +184,7 @@ var ptsTopoStats = zonalStats(topoCol, ptsTopo, params);
 print(ptsTopoStats);
 
 
-// VISULAIZATION + EXPORT
+// VISULAIZATION + EXPORT//////////////////////////////////////////////////////////////////////////////////////
 
 // add the cenerline points to map .... !! use this to check whether we have the centerline of interest!
 Map.addLayer(points)
@@ -203,7 +198,6 @@ var I_T_Vis = {
 
 Map.addLayer(Ho,I_T_Vis,'Ice Thickness');
 
-//Map.addLayer(cl, {color: 'green'},'Sit Kusa centerlines');
 
 // export pulled info to csv in drive 
 Export.table.toDrive({
